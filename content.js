@@ -1,12 +1,25 @@
 let bootstrapData, fixturesData, teamMapData, teamNameToId;
 let observer; // Global observer for freeze-proof mutation handling
 let debounceTimer = null;
-const DEBOUNCE_DELAY = 10; // ms, can adjust for faster/slower DOM settling
+const DEBOUNCE_DELAY = 250; // ms, can adjust for faster/slower DOM settling
 
 if (["/my-team", "/transfers"].includes(location.pathname)) {
   initializeFPLFixtures();
 }
 monitorRouteChange();
+
+// --- FORCE REINJECTION ON FOCUS/VISIBILITY ---
+window.addEventListener("focus", tryForceReinject, true);
+document.addEventListener("visibilitychange", tryForceReinject, true);
+
+function tryForceReinject() {
+  // Only run on my-team or transfers
+  if (["/my-team", "/transfers"].includes(location.pathname)) {
+    setTimeout(() => {
+      waitForElementsAndInject();
+    }, 300); // Wait a bit for React to finish async DOM update
+  }
+}
 
 function monitorRouteChange() {
   let lastPath = location.pathname + location.search;
@@ -16,6 +29,11 @@ function monitorRouteChange() {
       lastPath = currentPath;
       if (["/my-team", "/transfers"].includes(location.pathname)) {
         initializeFPLFixtures();
+
+        // Always force reinject overlays after short delay for SPA
+        setTimeout(() => {
+          waitForElementsAndInject();
+        }, 700); // Enough time for FPL React to finish all rerenders
       }
     }
   }, 1000);
