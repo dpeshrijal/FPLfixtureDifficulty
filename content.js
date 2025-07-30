@@ -14,6 +14,9 @@ function monitorRouteChange() {
       lastPath = currentPath;
       if (["/my-team", "/transfers"].includes(location.pathname)) {
         initializeFPLFixtures();
+        setTimeout(() => {
+          initializeFPLFixtures();
+        }, 500);
       }
     }
   }, 1000);
