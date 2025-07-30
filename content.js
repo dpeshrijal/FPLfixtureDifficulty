@@ -1,4 +1,4 @@
-let bootstrapData, fixturesData, teamMapData;
+let bootstrapData, fixturesData, teamMapData, teamNameToId;
 
 if (["/my-team", "/transfers"].includes(location.pathname)) {
   initializeFPLFixtures();
@@ -23,6 +23,8 @@ async function initializeFPLFixtures() {
   teamMapData = teamMap;
   fixturesData = fixtures;
   bootstrapData = bootstrap;
+  teamNameToId = buildTeamNameToIdMap(teamMap);
+
   waitForElementsAndInject();
 
   const observer = new MutationObserver(() => {
@@ -67,12 +69,21 @@ async function fetchFPLData() {
   return data;
 }
 
+function buildTeamNameToIdMap(teamMap) {
+  const map = {};
+  Object.entries(teamMap).forEach(([id, team]) => {
+    map[team.name.toLowerCase()] = id;
+    map[team.short_name.toLowerCase()] = id;
+  });
+  return map;
+}
+
+// Main injection trigger
 function waitForElementsAndInject(retries = 10, interval = 1000) {
   const pitchPlayers = document.querySelectorAll(
     'button[data-pitch-element="true"]'
   );
   const tableRows = document.querySelectorAll("table tbody tr");
-  const isListView = pitchPlayers.length === 0 && tableRows.length > 0;
 
   waitForListViewAndInject(retries, interval);
   waitForTransfersSideTableInjection(retries, interval);
@@ -90,6 +101,24 @@ function waitForElementsAndInject(retries = 10, interval = 1000) {
   injectFixtures(pitchPlayers);
 }
 
+// --- PLAYER DATA LOOKUP ---
+
+/**
+ * Looks up the correct player data using name and team ID (bulletproof).
+ */
+function findPlayerData(playerName, teamId, elements) {
+  if (!playerName || !teamId) return null;
+  playerName = playerName.toLowerCase();
+  return elements.find(
+    (p) =>
+      (p.web_name.toLowerCase() === playerName ||
+        (p.first_name + " " + p.second_name).toLowerCase() === playerName) &&
+      p.team == teamId
+  );
+}
+
+// --- LIST VIEW (table) ---
+
 function waitForListViewAndInject(retries = 10, interval = 1000) {
   const rows = document.querySelectorAll("table tbody tr");
   if (rows.length === 0) {
@@ -105,18 +134,23 @@ function waitForListViewAndInject(retries = 10, interval = 1000) {
   rows.forEach((row) => {
     if (row.querySelector(".fixtureBox")) return;
 
+    // Player name
     const nameSpan = row.querySelector("td span._5bm4v44");
     if (!nameSpan) return;
-
     const playerName = nameSpan.textContent.trim();
-    const playerData = bootstrapData.elements.find(
-      (p) =>
-        p.web_name.toLowerCase() === playerName.toLowerCase() ||
-        playerName.toLowerCase().includes(p.web_name.toLowerCase())
+
+    // Team name (from shirt image alt)
+    const teamImg = row.querySelector("img[alt]");
+    const teamName = teamImg?.alt?.trim();
+    const teamId = teamNameToId?.[teamName?.toLowerCase()];
+
+    const playerData = findPlayerData(
+      playerName,
+      teamId,
+      bootstrapData.elements
     );
     if (!playerData) return;
 
-    const teamId = playerData.team;
     const fixtureBoxEl = createFixtureBox(teamId, fixturesData, teamMapData);
     fixtureBoxEl.className = "fixtureBox";
     fixtureBoxEl.style.marginTop = "4px";
@@ -124,6 +158,8 @@ function waitForListViewAndInject(retries = 10, interval = 1000) {
     nameSpan.parentElement.appendChild(fixtureBoxEl);
   });
 }
+
+// --- TRANSFERS SIDE TABLE ---
 
 function waitForTransfersSideTableInjection(retries = 10, interval = 1000) {
   const sideTableRows = document.querySelectorAll(
@@ -142,18 +178,23 @@ function waitForTransfersSideTableInjection(retries = 10, interval = 1000) {
   sideTableRows.forEach((row) => {
     if (row.querySelector(".fixtureBox")) return;
 
+    // Player name
     const nameSpan = row.querySelector("td span._5bm4v44");
     if (!nameSpan) return;
-
     const playerName = nameSpan.textContent.trim();
-    const playerData = bootstrapData.elements.find(
-      (p) =>
-        p.web_name.toLowerCase() === playerName.toLowerCase() ||
-        playerName.toLowerCase().includes(p.web_name.toLowerCase())
+
+    // Team name (from shirt image alt)
+    const teamImg = row.querySelector("img[alt]");
+    const teamName = teamImg?.alt?.trim();
+    const teamId = teamNameToId?.[teamName?.toLowerCase()];
+
+    const playerData = findPlayerData(
+      playerName,
+      teamId,
+      bootstrapData.elements
     );
     if (!playerData) return;
 
-    const teamId = playerData.team;
     const fixtureBoxEl = createFixtureBox(teamId, fixturesData, teamMapData);
     fixtureBoxEl.className = "fixtureBox";
     fixtureBoxEl.style.marginTop = "4px";
@@ -161,6 +202,8 @@ function waitForTransfersSideTableInjection(retries = 10, interval = 1000) {
     nameSpan.parentElement.appendChild(fixtureBoxEl);
   });
 }
+
+// --- PITCH VIEW ---
 
 function injectFixtures(playerButtons) {
   const isTransfers = location.pathname === "/transfers";
@@ -171,12 +214,18 @@ function injectFixtures(playerButtons) {
     const playerName = el.getAttribute("aria-label");
     if (!playerName) return;
 
-    const playerData = bootstrapData.elements.find(
-      (p) => p.web_name.toLowerCase() === playerName.toLowerCase()
+    // Try to find the team name from the shirt image (relative to button structure)
+    const teamImg = el.querySelector("img[alt]");
+    const teamName = teamImg?.alt?.trim();
+    const teamId = teamNameToId?.[teamName?.toLowerCase()];
+
+    const playerData = findPlayerData(
+      playerName,
+      teamId,
+      bootstrapData.elements
     );
     if (!playerData) return;
 
-    const teamId = playerData.team;
     const fixtureBoxEl = createFixtureBox(teamId, fixturesData, teamMapData);
     fixtureBoxEl.className = "fixtureBox";
 
@@ -194,9 +243,15 @@ function injectFixtures(playerButtons) {
   });
 }
 
+// --- FIXTURE BOX ---
+
 function createFixtureBox(teamId, fixtures, teamMap) {
   const upcomingFixtures = fixtures
-    .filter((f) => !f.finished && (f.team_h === teamId || f.team_a === teamId))
+    .filter(
+      (f) =>
+        !f.finished &&
+        (f.team_h === Number(teamId) || f.team_a === Number(teamId))
+    )
     .sort((a, b) => new Date(a.kickoff_time) - new Date(b.kickoff_time))
     .slice(0, 5);
 
@@ -208,7 +263,7 @@ function createFixtureBox(teamId, fixtures, teamMap) {
   container.style.height = "16px";
 
   upcomingFixtures.forEach((fixture) => {
-    const isHome = fixture.team_h === teamId;
+    const isHome = fixture.team_h === Number(teamId);
     const opponentId = isHome ? fixture.team_a : fixture.team_h;
     const difficulty = isHome
       ? fixture.team_h_difficulty
