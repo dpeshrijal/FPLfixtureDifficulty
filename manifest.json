@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
   "name": "FPL Fixture Difficulty",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Show difficulty of next 5 fixtures under each player",
+  "permissions": ["https://fantasy.premierleague.com/*"],
   "host_permissions": ["https://fantasy.premierleague.com/*"],
   "icons": {
     "16": "icons/icon16.png",
@@ -12,7 +13,13 @@
   "content_scripts": [
     {
       "matches": ["https://fantasy.premierleague.com/*"],
-      "js": ["content.js"]
+      "js": ["content/main.js"],
+      "type": "module"
     }
-  ]
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "deepeshrijal@gmail.com"
+    }
+  }
 }
