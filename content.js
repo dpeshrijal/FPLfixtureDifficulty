@@ -1,5 +1,7 @@
 let bootstrapData, fixturesData, teamMapData, teamNameToId;
 let observer; // Global observer for freeze-proof mutation handling
+let debounceTimer = null;
+const DEBOUNCE_DELAY = 10; // ms, can adjust for faster/slower DOM settling
 
 if (["/my-team", "/transfers"].includes(location.pathname)) {
   initializeFPLFixtures();
@@ -14,9 +16,6 @@ function monitorRouteChange() {
       lastPath = currentPath;
       if (["/my-team", "/transfers"].includes(location.pathname)) {
         initializeFPLFixtures();
-        setTimeout(() => {
-          initializeFPLFixtures();
-        }, 500);
       }
     }
   }, 1000);
@@ -33,9 +32,12 @@ async function initializeFPLFixtures() {
 
   if (observer) observer.disconnect();
   observer = new MutationObserver(() => {
-    observer.disconnect(); // Prevent infinite loops
-    waitForElementsAndInject();
-    observer.observe(document.body, { childList: true, subtree: true });
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      observer.disconnect(); // Prevent infinite loops
+      waitForElementsAndInject();
+      observer.observe(document.body, { childList: true, subtree: true });
+    }, DEBOUNCE_DELAY);
   });
   observer.observe(document.body, { childList: true, subtree: true });
 }
@@ -153,10 +155,10 @@ function waitForListViewAndInject(retries = 10, interval = 1000) {
     );
     if (!playerData) return;
 
-    // Remove previous fixture box if exists
-    const existingFixtureBox =
-      nameSpan.parentElement.querySelector(".fixtureBox");
-    if (existingFixtureBox) existingFixtureBox.remove();
+    // Remove ALL previous fixture boxes before adding a new one
+    nameSpan.parentElement
+      .querySelectorAll(".fixtureBox")
+      .forEach((box) => box.remove());
 
     const fixtureBoxEl = createFixtureBox(teamId, fixturesData, teamMapData);
     fixtureBoxEl.className = "fixtureBox";
@@ -200,10 +202,10 @@ function waitForTransfersSideTableInjection(retries = 10, interval = 1000) {
     );
     if (!playerData) return;
 
-    // Remove previous fixture box if exists
-    const existingFixtureBox =
-      nameSpan.parentElement.querySelector(".fixtureBox");
-    if (existingFixtureBox) existingFixtureBox.remove();
+    // Remove ALL previous fixture boxes before adding a new one
+    nameSpan.parentElement
+      .querySelectorAll(".fixtureBox")
+      .forEach((box) => box.remove());
 
     const fixtureBoxEl = createFixtureBox(teamId, fixturesData, teamMapData);
     fixtureBoxEl.className = "fixtureBox";
@@ -244,9 +246,10 @@ function injectFixtures(playerButtons) {
       : el.querySelector("span");
 
     if (nameSpan && nameSpan.parentElement) {
-      // Remove old fixture box if present
-      const oldBox = nameSpan.parentElement.querySelector(".fixtureBox");
-      if (oldBox) oldBox.remove();
+      // Remove ALL previous fixture boxes before adding a new one
+      nameSpan.parentElement
+        .querySelectorAll(".fixtureBox")
+        .forEach((box) => box.remove());
 
       nameSpan.parentElement.appendChild(fixtureBoxEl);
     }
