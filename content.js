@@ -1,7 +1,7 @@
 let bootstrapData, fixturesData, teamMapData, teamNameToId;
-let observer; // Global observer for freeze-proof mutation handling
+let observer;
 let debounceTimer = null;
-const DEBOUNCE_DELAY = 250; // ms, can adjust for faster/slower DOM settling
+const DEBOUNCE_DELAY = 10; // ms
 
 if (["/my-team", "/transfers"].includes(location.pathname)) {
   initializeFPLFixtures();
@@ -13,11 +13,8 @@ window.addEventListener("focus", tryForceReinject, true);
 document.addEventListener("visibilitychange", tryForceReinject, true);
 
 function tryForceReinject() {
-  // Only run on my-team or transfers
   if (["/my-team", "/transfers"].includes(location.pathname)) {
-    setTimeout(() => {
-      waitForElementsAndInject();
-    }, 300); // Wait a bit for React to finish async DOM update
+    setTimeout(waitForElementsAndInject, 300);
   }
 }
 
@@ -29,11 +26,7 @@ function monitorRouteChange() {
       lastPath = currentPath;
       if (["/my-team", "/transfers"].includes(location.pathname)) {
         initializeFPLFixtures();
-
-        // Always force reinject overlays after short delay for SPA
-        setTimeout(() => {
-          waitForElementsAndInject();
-        }, 700); // Enough time for FPL React to finish all rerenders
+        setTimeout(waitForElementsAndInject, 700);
       }
     }
   }, 1000);
@@ -52,7 +45,7 @@ async function initializeFPLFixtures() {
   observer = new MutationObserver(() => {
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
-      observer.disconnect(); // Prevent infinite loops
+      observer.disconnect();
       waitForElementsAndInject();
       observer.observe(document.body, { childList: true, subtree: true });
     }, DEBOUNCE_DELAY);
@@ -70,29 +63,21 @@ async function fetchFPLData() {
       return parsed.data;
     }
   }
-
   const [bootstrapRes, fixturesRes] = await Promise.all([
     fetch("https://fantasy.premierleague.com/api/bootstrap-static/"),
     fetch("https://fantasy.premierleague.com/api/fixtures/"),
   ]);
-
   const bootstrap = await bootstrapRes.json();
   const fixtures = await fixturesRes.json();
-
   const teamMap = {};
   bootstrap.teams.forEach((team) => {
-    teamMap[team.id] = {
-      name: team.name,
-      short_name: team.short_name,
-    };
+    teamMap[team.id] = { name: team.name, short_name: team.short_name };
   });
-
   const data = { teamMap, fixtures, bootstrap };
   localStorage.setItem(
     cacheKey,
     JSON.stringify({ timestamp: Date.now(), data })
   );
-
   return data;
 }
 
@@ -105,30 +90,16 @@ function buildTeamNameToIdMap(teamMap) {
   return map;
 }
 
-// Main injection trigger
-function waitForElementsAndInject(retries = 10, interval = 1000) {
-  const pitchPlayers = document.querySelectorAll(
-    'button[data-pitch-element="true"]'
-  );
-  const tableRows = document.querySelectorAll("table tbody tr");
+// --- DRY FIXTURE INJECTION (margin-corrected) ---
 
-  waitForListViewAndInject(retries, interval);
-  waitForTransfersSideTableInjection(retries, interval);
-
-  if (pitchPlayers.length === 0) {
-    if (retries > 0) {
-      setTimeout(
-        () => waitForElementsAndInject(retries - 1, interval),
-        interval
-      );
-    }
-    return;
-  }
-
-  injectFixtures(pitchPlayers);
+function injectFixtureBox(parentElement, teamId, marginTop = "4px") {
+  if (!parentElement || !teamId) return;
+  parentElement.querySelectorAll(".fixtureBox").forEach((box) => box.remove());
+  const fixtureBoxEl = createFixtureBox(teamId, fixturesData, teamMapData);
+  fixtureBoxEl.className = "fixtureBox";
+  fixtureBoxEl.style.marginTop = marginTop;
+  parentElement.appendChild(fixtureBoxEl);
 }
-
-// --- PLAYER DATA LOOKUP ---
 
 function findPlayerData(playerName, teamId, elements) {
   if (!playerName || !teamId) return null;
@@ -141,135 +112,82 @@ function findPlayerData(playerName, teamId, elements) {
   );
 }
 
-// --- LIST VIEW (table) ---
+function waitForElementsAndInject(retries = 10, interval = 1000) {
+  injectListAndSideView(retries, interval);
+  injectPitchView();
+}
 
-function waitForListViewAndInject(retries = 10, interval = 1000) {
+function injectListAndSideView(retries = 10, interval = 1000) {
+  // Main table view
   const rows = document.querySelectorAll("table tbody tr");
-  if (rows.length === 0) {
-    if (retries > 0) {
-      setTimeout(
-        () => waitForListViewAndInject(retries - 1, interval),
-        interval
-      );
-    }
+  if (rows.length === 0 && retries > 0) {
+    setTimeout(() => injectListAndSideView(retries - 1, interval), interval);
     return;
   }
-
   rows.forEach((row) => {
-    // Player name
     const nameSpan = row.querySelector("td span._5bm4v44");
-    if (!nameSpan) return;
-    const playerName = nameSpan.textContent.trim();
-
-    // Team name (from shirt image alt)
     const teamImg = row.querySelector("img[alt]");
-    const teamName = teamImg?.alt?.trim();
+    if (!nameSpan || !teamImg) return;
+    const playerName = nameSpan.textContent.trim();
+    const teamName = teamImg.alt.trim();
     const teamId = teamNameToId?.[teamName?.toLowerCase()];
-
     const playerData = findPlayerData(
       playerName,
       teamId,
       bootstrapData.elements
     );
     if (!playerData) return;
-
-    // Remove ALL previous fixture boxes before adding a new one
-    nameSpan.parentElement
-      .querySelectorAll(".fixtureBox")
-      .forEach((box) => box.remove());
-
-    const fixtureBoxEl = createFixtureBox(teamId, fixturesData, teamMapData);
-    fixtureBoxEl.className = "fixtureBox";
-    fixtureBoxEl.style.marginTop = "4px";
-
-    nameSpan.parentElement.appendChild(fixtureBoxEl);
+    injectFixtureBox(nameSpan.parentElement, teamId, "4px");
   });
-}
 
-// --- TRANSFERS SIDE TABLE ---
-
-function waitForTransfersSideTableInjection(retries = 10, interval = 1000) {
+  // Side-table (transfers)
   const sideTableRows = document.querySelectorAll(
     ".ElementDialog table tbody tr"
   );
-  if (sideTableRows.length === 0) {
-    if (retries > 0) {
-      setTimeout(
-        () => waitForTransfersSideTableInjection(retries - 1, interval),
-        interval
-      );
-    }
+  if (sideTableRows.length === 0 && retries > 0) {
+    setTimeout(() => injectListAndSideView(retries - 1, interval), interval);
     return;
   }
-
   sideTableRows.forEach((row) => {
-    // Player name
     const nameSpan = row.querySelector("td span._5bm4v44");
-    if (!nameSpan) return;
-    const playerName = nameSpan.textContent.trim();
-
-    // Team name (from shirt image alt)
     const teamImg = row.querySelector("img[alt]");
-    const teamName = teamImg?.alt?.trim();
+    if (!nameSpan || !teamImg) return;
+    const playerName = nameSpan.textContent.trim();
+    const teamName = teamImg.alt.trim();
     const teamId = teamNameToId?.[teamName?.toLowerCase()];
-
     const playerData = findPlayerData(
       playerName,
       teamId,
       bootstrapData.elements
     );
     if (!playerData) return;
-
-    // Remove ALL previous fixture boxes before adding a new one
-    nameSpan.parentElement
-      .querySelectorAll(".fixtureBox")
-      .forEach((box) => box.remove());
-
-    const fixtureBoxEl = createFixtureBox(teamId, fixturesData, teamMapData);
-    fixtureBoxEl.className = "fixtureBox";
-    fixtureBoxEl.style.marginTop = "4px";
-
-    nameSpan.parentElement.appendChild(fixtureBoxEl);
+    injectFixtureBox(nameSpan.parentElement, teamId, "4px");
   });
 }
 
-// --- PITCH VIEW ---
-
-function injectFixtures(playerButtons) {
+function injectPitchView() {
   const isTransfers = location.pathname === "/transfers";
-
+  const playerButtons = document.querySelectorAll(
+    'button[data-pitch-element="true"]'
+  );
   playerButtons.forEach((el) => {
     const playerName = el.getAttribute("aria-label");
-    if (!playerName) return;
-
-    // Try to find the team name from the shirt image (relative to button structure)
     const teamImg = el.querySelector("img[alt]");
-    const teamName = teamImg?.alt?.trim();
+    if (!playerName || !teamImg) return;
+    const teamName = teamImg.alt.trim();
     const teamId = teamNameToId?.[teamName?.toLowerCase()];
-
     const playerData = findPlayerData(
       playerName,
       teamId,
       bootstrapData.elements
     );
     if (!playerData) return;
-
-    const fixtureBoxEl = createFixtureBox(teamId, fixturesData, teamMapData);
-    fixtureBoxEl.className = "fixtureBox";
-
     el.style.paddingBottom = "6px";
-
     const nameSpan = isTransfers
       ? el.querySelector("div > div > span")
       : el.querySelector("span");
-
     if (nameSpan && nameSpan.parentElement) {
-      // Remove ALL previous fixture boxes before adding a new one
-      nameSpan.parentElement
-        .querySelectorAll(".fixtureBox")
-        .forEach((box) => box.remove());
-
-      nameSpan.parentElement.appendChild(fixtureBoxEl);
+      injectFixtureBox(nameSpan.parentElement, teamId, "0px");
     }
   });
 }
