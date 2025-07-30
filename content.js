@@ -1,4 +1,5 @@
 let bootstrapData, fixturesData, teamMapData, teamNameToId;
+let observer; // Global observer for freeze-proof mutation handling
 
 if (["/my-team", "/transfers"].includes(location.pathname)) {
   initializeFPLFixtures();
@@ -27,8 +28,11 @@ async function initializeFPLFixtures() {
 
   waitForElementsAndInject();
 
-  const observer = new MutationObserver(() => {
+  if (observer) observer.disconnect();
+  observer = new MutationObserver(() => {
+    observer.disconnect(); // Prevent infinite loops
     waitForElementsAndInject();
+    observer.observe(document.body, { childList: true, subtree: true });
   });
   observer.observe(document.body, { childList: true, subtree: true });
 }
@@ -103,9 +107,6 @@ function waitForElementsAndInject(retries = 10, interval = 1000) {
 
 // --- PLAYER DATA LOOKUP ---
 
-/**
- * Looks up the correct player data using name and team ID (bulletproof).
- */
 function findPlayerData(playerName, teamId, elements) {
   if (!playerName || !teamId) return null;
   playerName = playerName.toLowerCase();
@@ -132,8 +133,6 @@ function waitForListViewAndInject(retries = 10, interval = 1000) {
   }
 
   rows.forEach((row) => {
-    if (row.querySelector(".fixtureBox")) return;
-
     // Player name
     const nameSpan = row.querySelector("td span._5bm4v44");
     if (!nameSpan) return;
@@ -150,6 +149,11 @@ function waitForListViewAndInject(retries = 10, interval = 1000) {
       bootstrapData.elements
     );
     if (!playerData) return;
+
+    // Remove previous fixture box if exists
+    const existingFixtureBox =
+      nameSpan.parentElement.querySelector(".fixtureBox");
+    if (existingFixtureBox) existingFixtureBox.remove();
 
     const fixtureBoxEl = createFixtureBox(teamId, fixturesData, teamMapData);
     fixtureBoxEl.className = "fixtureBox";
@@ -176,8 +180,6 @@ function waitForTransfersSideTableInjection(retries = 10, interval = 1000) {
   }
 
   sideTableRows.forEach((row) => {
-    if (row.querySelector(".fixtureBox")) return;
-
     // Player name
     const nameSpan = row.querySelector("td span._5bm4v44");
     if (!nameSpan) return;
@@ -195,6 +197,11 @@ function waitForTransfersSideTableInjection(retries = 10, interval = 1000) {
     );
     if (!playerData) return;
 
+    // Remove previous fixture box if exists
+    const existingFixtureBox =
+      nameSpan.parentElement.querySelector(".fixtureBox");
+    if (existingFixtureBox) existingFixtureBox.remove();
+
     const fixtureBoxEl = createFixtureBox(teamId, fixturesData, teamMapData);
     fixtureBoxEl.className = "fixtureBox";
     fixtureBoxEl.style.marginTop = "4px";
@@ -209,8 +216,6 @@ function injectFixtures(playerButtons) {
   const isTransfers = location.pathname === "/transfers";
 
   playerButtons.forEach((el) => {
-    if (el.dataset.fixturesInjected) return;
-
     const playerName = el.getAttribute("aria-label");
     if (!playerName) return;
 
@@ -236,10 +241,12 @@ function injectFixtures(playerButtons) {
       : el.querySelector("span");
 
     if (nameSpan && nameSpan.parentElement) {
+      // Remove old fixture box if present
+      const oldBox = nameSpan.parentElement.querySelector(".fixtureBox");
+      if (oldBox) oldBox.remove();
+
       nameSpan.parentElement.appendChild(fixtureBoxEl);
     }
-
-    el.dataset.fixturesInjected = "true";
   });
 }
 
