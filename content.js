@@ -209,7 +209,7 @@ function createFixtureBox(teamId, fixtures, teamMap) {
   container.style.gap = "1px";
   container.style.margin = "0";
   container.style.padding = "0";
-  container.style.height = "16px";
+  container.style.height = "22px";
 
   upcomingFixtures.forEach((fixture) => {
     const isHome = fixture.team_h === Number(teamId);
@@ -220,23 +220,42 @@ function createFixtureBox(teamId, fixtures, teamMap) {
     const opponentShort = teamMap[opponentId]?.short_name || "???";
 
     const box = document.createElement("div");
-    box.textContent = opponentShort;
+    box.style.display = "flex";
+    box.style.flexDirection = "column";
+    box.style.alignItems = "center";
+    box.style.justifyContent = "center";
+    box.style.width = "22px";
+    box.style.height = "22px";
     box.style.backgroundColor = getDifficultyBackground(difficulty);
     box.style.color = "#000";
     box.style.fontWeight = "bold";
-    box.style.fontSize = "8.5px";
+    box.style.fontSize = "8px";
     box.style.letterSpacing = "0px";
-    box.style.paddingTop = "1px";
-    box.style.width = "22px";
-    box.style.height = "16px";
-    box.style.display = "flex";
-    box.style.alignItems = "center";
-    box.style.justifyContent = "center";
-    box.style.textAlign = "center";
-    box.style.lineHeight = "1";
     box.style.fontFamily = "Arial, sans-serif";
     box.style.borderRadius = "2px";
-    box.title = `${opponentShort} (difficulty ${difficulty})`;
+    box.title = `${opponentShort} (${
+      isHome ? "H" : "A"
+    }, difficulty ${difficulty})`;
+
+    // Opponent
+    const opponentDiv = document.createElement("div");
+    opponentDiv.textContent = opponentShort;
+    opponentDiv.style.lineHeight = "1";
+    opponentDiv.style.marginTop = "1px";
+    opponentDiv.style.fontSize = "8.5px";
+    opponentDiv.style.fontWeight = "bold";
+
+    // Home/Away
+    const haDiv = document.createElement("div");
+    haDiv.textContent = isHome ? "(H)" : "(A)";
+    haDiv.style.fontSize = "7px";
+    haDiv.style.fontWeight = "bold";
+    haDiv.style.opacity = "0.85";
+    haDiv.style.lineHeight = "1";
+    haDiv.style.marginBottom = "0";
+
+    box.appendChild(opponentDiv);
+    box.appendChild(haDiv);
 
     container.appendChild(box);
   });
