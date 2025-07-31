@@ -244,13 +244,13 @@ function createFixtureBox(teamId, fixtures, teamMap) {
     opponentDiv.style.marginTop = "1px";
     opponentDiv.style.fontSize = "8.5px";
     opponentDiv.style.fontWeight = "bold";
+    opponentDiv.style.marginBottom = "1px";
 
     // Home/Away
     const haDiv = document.createElement("div");
     haDiv.textContent = isHome ? "(H)" : "(A)";
     haDiv.style.fontSize = "7px";
     haDiv.style.fontWeight = "bold";
-    haDiv.style.opacity = "0.85";
     haDiv.style.lineHeight = "1";
     haDiv.style.marginBottom = "0";
 
