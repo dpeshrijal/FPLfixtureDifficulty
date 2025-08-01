@@ -138,7 +138,6 @@ function injectListAndSideView(retries = 10, interval = 1000) {
     );
     if (!playerData) return;
 
-    // Add ownership badge
     addOwnershipBadge(row, playerData);
 
     injectFixtureBox(nameSpan.parentElement, teamId, "4px");
@@ -166,7 +165,6 @@ function injectListAndSideView(retries = 10, interval = 1000) {
     );
     if (!playerData) return;
 
-    // Add ownership badge
     addOwnershipBadge(row, playerData);
 
     injectFixtureBox(nameSpan.parentElement, teamId, "4px");
@@ -342,9 +340,7 @@ function findPlayerNameSpan(row) {
   });
 }
 
-// Helper function to add ownership badge to table rows
 function addOwnershipBadge(row, playerData) {
-  // Remove existing badges first
   row
     .querySelectorAll(".fpl-ownership-badge")
     .forEach((badge) => badge.remove());
