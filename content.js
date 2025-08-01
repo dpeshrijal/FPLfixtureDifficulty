@@ -125,7 +125,7 @@ function injectListAndSideView(retries = 10, interval = 1000) {
     return;
   }
   rows.forEach((row) => {
-    const nameSpan = row.querySelector("td span._5bm4v44");
+    const nameSpan = findPlayerNameSpan(row);
     const teamImg = row.querySelector("img[alt]");
     if (!nameSpan || !teamImg) return;
     const playerName = nameSpan.textContent.trim();
@@ -149,7 +149,7 @@ function injectListAndSideView(retries = 10, interval = 1000) {
     return;
   }
   sideTableRows.forEach((row) => {
-    const nameSpan = row.querySelector("td span._5bm4v44");
+    const nameSpan = findPlayerNameSpan(row);
     const teamImg = row.querySelector("img[alt]");
     if (!nameSpan || !teamImg) return;
     const playerName = nameSpan.textContent.trim();
@@ -318,4 +318,18 @@ function getDifficultyBackground(difficulty) {
     default:
       return "#999999";
   }
+}
+
+function findPlayerNameSpan(row) {
+  const spans = row.querySelectorAll("td span");
+  return Array.from(spans).find((span) => {
+    const text = span.textContent.trim();
+    return (
+      text &&
+      text.length > 2 &&
+      !span.querySelector("img") &&
+      !span.className.includes("icon") &&
+      !span.className.includes("badge")
+    );
+  });
 }
