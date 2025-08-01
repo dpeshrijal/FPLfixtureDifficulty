@@ -201,20 +201,20 @@ function injectPitchView() {
       badge.style.fontSize = "8px";
       badge.style.fontWeight = "bold";
       badge.style.padding = "0 3px";
-      badge.style.borderRadius = "6px";
+      badge.style.borderRadius = "4px";
       badge.style.zIndex = "5";
       badge.style.boxShadow = "0 1px 3px rgba(0,0,0,0.10)";
       badge.style.pointerEvents = "none";
     } else {
       badge.style.top = "4px";
-      badge.style.right = "2px";
+      badge.style.right = "3px";
       badge.style.background = "rgba(255,255,255,0.85)";
       badge.style.color = "#333";
       badge.style.fontWeight = "bold";
-      badge.style.fontSize = "8.5px";
+      badge.style.fontSize = "9px";
       badge.style.fontWeight = "bold";
       badge.style.padding = "0 3px";
-      badge.style.borderRadius = "6px";
+      badge.style.borderRadius = "4px";
       badge.style.zIndex = "5";
       badge.style.boxShadow = "0 1px 3px rgba(0,0,0,0.10)";
       badge.style.pointerEvents = "none";
