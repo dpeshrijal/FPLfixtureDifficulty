@@ -183,12 +183,52 @@ function injectPitchView() {
     );
     if (!playerData) return;
     el.style.paddingBottom = "6px";
+
+    el.querySelectorAll(".fpl-ownership-badge").forEach((badge) =>
+      badge.remove()
+    );
+    const ownership = playerData.selected_by_percent;
+    const badge = document.createElement("div");
+    badge.className = "fpl-ownership-badge";
+    badge.textContent = `${ownership}%`;
+    badge.style.position = "absolute";
+    if (isTransfers) {
+      badge.style.top = "2px";
+      badge.style.right = "2px";
+      badge.style.background = "rgba(255,255,255,0.85)";
+      badge.style.color = "#333";
+      badge.style.fontWeight = "bold";
+      badge.style.fontSize = "8px";
+      badge.style.fontWeight = "bold";
+      badge.style.padding = "0 3px";
+      badge.style.borderRadius = "6px";
+      badge.style.zIndex = "5";
+      badge.style.boxShadow = "0 1px 3px rgba(0,0,0,0.10)";
+      badge.style.pointerEvents = "none";
+    } else {
+      badge.style.top = "4px";
+      badge.style.right = "2px";
+      badge.style.background = "rgba(255,255,255,0.85)";
+      badge.style.color = "#333";
+      badge.style.fontWeight = "bold";
+      badge.style.fontSize = "8.5px";
+      badge.style.fontWeight = "bold";
+      badge.style.padding = "0 3px";
+      badge.style.borderRadius = "6px";
+      badge.style.zIndex = "5";
+      badge.style.boxShadow = "0 1px 3px rgba(0,0,0,0.10)";
+      badge.style.pointerEvents = "none";
+    }
+
+    el.style.position = "relative";
+
     const nameSpan = isTransfers
       ? el.querySelector("div > div > span")
       : el.querySelector("span");
     if (nameSpan && nameSpan.parentElement) {
       injectFixtureBox(nameSpan.parentElement, teamId, "0px");
     }
+    el.appendChild(badge);
   });
 }
 
