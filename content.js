@@ -137,6 +137,10 @@ function injectListAndSideView(retries = 10, interval = 1000) {
       bootstrapData.elements
     );
     if (!playerData) return;
+
+    // Add ownership badge
+    addOwnershipBadge(row, playerData);
+
     injectFixtureBox(nameSpan.parentElement, teamId, "4px");
   });
 
@@ -161,6 +165,10 @@ function injectListAndSideView(retries = 10, interval = 1000) {
       bootstrapData.elements
     );
     if (!playerData) return;
+
+    // Add ownership badge
+    addOwnershipBadge(row, playerData);
+
     injectFixtureBox(nameSpan.parentElement, teamId, "4px");
   });
 }
@@ -332,4 +340,35 @@ function findPlayerNameSpan(row) {
       !span.className.includes("badge")
     );
   });
+}
+
+// Helper function to add ownership badge to table rows
+function addOwnershipBadge(row, playerData) {
+  // Remove existing badges first
+  row
+    .querySelectorAll(".fpl-ownership-badge")
+    .forEach((badge) => badge.remove());
+
+  const ownership = playerData.selected_by_percent;
+  const badge = document.createElement("div");
+  badge.className = "fpl-ownership-badge";
+  badge.textContent = `${ownership}%`;
+  badge.style.display = "inline-block";
+  badge.style.marginLeft = "6px";
+  badge.style.background = "rgba(255,255,255,0.85)";
+  badge.style.color = "#333";
+  badge.style.fontWeight = "bold";
+  badge.style.fontSize = "8px";
+  badge.style.padding = "0 3px";
+  badge.style.borderRadius = "4px";
+  badge.style.boxShadow = "0 1px 3px rgba(0,0,0,0.10)";
+  badge.style.pointerEvents = "none";
+  badge.style.verticalAlign = "baseline";
+  badge.style.transform = "translateY(-2.7px)";
+
+  // Find the name span and insert the badge after it
+  const nameSpan = findPlayerNameSpan(row);
+  if (nameSpan) {
+    nameSpan.appendChild(badge);
+  }
 }
