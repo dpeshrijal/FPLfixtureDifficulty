@@ -115,6 +115,9 @@ function findPlayerData(playerName, teamId, elements) {
 function waitForElementsAndInject(retries = 10, interval = 1000) {
   injectListAndSideView(retries, interval);
   injectPitchView();
+  if (location.pathname === "/transfers") {
+    flipTransfersSectionsCSS();
+  }
 }
 
 function injectListAndSideView(retries = 10, interval = 1000) {
@@ -237,6 +240,109 @@ function injectPitchView() {
     el.appendChild(badge);
   });
 }
+
+function flipTransfersSectionsCSS() {
+  if (location.pathname !== "/transfers") return;
+  const container = document.querySelector("div._16mjapo2._16mjapo0");
+  if (!container) return;
+
+  // Always recalculate sizes based on current window dimensions
+  const pitchDiv = container.querySelector("div._16mjapo4");
+  const tableDiv = container.querySelector("div._16mjapo5");
+  if (!pitchDiv || !tableDiv) return;
+
+  // Calculate proportional sizes based on current window width
+  const containerWidth = container.offsetWidth;
+  const windowWidth = window.innerWidth;
+  const availableWidth = containerWidth || windowWidth;
+
+  // Calculate proportional sizes (68% pitch, 32% table)
+  const pitchWidth = Math.floor(availableWidth * 0.68);
+  const tableWidth = Math.floor(availableWidth * 0.32);
+
+  const finalPitchSize = `${pitchWidth}px`;
+  const finalTableSize = `${tableWidth}px`;
+
+  // Store the new sizes
+  container.setAttribute("data-original-pitch-size", finalPitchSize);
+  container.setAttribute("data-original-table-size", finalTableSize);
+  container.setAttribute("data-original-sizes-stored", "true");
+
+  // Apply the layout swap with stored original sizes
+  container.style.display = "flex";
+  container.style.flexDirection = "row-reverse";
+
+  if (!pitchDiv || !tableDiv) return;
+
+  // Use stored original sizes to maintain proportions
+  const originalPitchSize = container.getAttribute("data-original-pitch-size");
+  const originalTableSize = container.getAttribute("data-original-table-size");
+
+  // Apply sizes without swapping - each section keeps its original size
+  pitchDiv.style.flexBasis = originalPitchSize;
+  pitchDiv.style.width = originalPitchSize;
+  pitchDiv.style.minWidth = originalPitchSize;
+  pitchDiv.style.maxWidth = originalPitchSize;
+  pitchDiv.style.paddingLeft = "50px"; // Add left padding to prevent cutoff
+
+  tableDiv.style.flexBasis = originalTableSize;
+  tableDiv.style.width = originalTableSize;
+  tableDiv.style.minWidth = originalTableSize;
+  tableDiv.style.maxWidth = originalTableSize;
+}
+
+// Add responsive resize handling
+let resizeTimeout;
+let lastWindowWidth = window.innerWidth;
+let lastWindowHeight = window.innerHeight;
+
+function handleResize() {
+  if (location.pathname === "/transfers") {
+    const currentWidth = window.innerWidth;
+    const currentHeight = window.innerHeight;
+    const widthChange = Math.abs(currentWidth - lastWindowWidth);
+    const heightChange = Math.abs(currentHeight - lastWindowHeight);
+
+    // Only trigger if there's a significant size change (more than 50px)
+    if (widthChange < 50 && heightChange < 50) {
+      return;
+    }
+
+    lastWindowWidth = currentWidth;
+    lastWindowHeight = currentHeight;
+
+    // Clear existing timeout to debounce resize events
+    if (resizeTimeout) clearTimeout(resizeTimeout);
+
+    // Debounce resize events to avoid excessive calls
+    resizeTimeout = setTimeout(() => {
+      // Force a complete recalculation by clearing all stored data
+      const containers = document.querySelectorAll("div._16mjapo2._16mjapo0");
+      containers.forEach((container) => {
+        container.removeAttribute("data-original-sizes-stored");
+        container.removeAttribute("data-original-pitch-size");
+        container.removeAttribute("data-original-table-size");
+      });
+
+      // Wait for DOM to settle, then recalculate
+      setTimeout(() => {
+        flipTransfersSectionsCSS();
+      }, 100);
+    }, 300);
+  }
+}
+
+// Add resize listener if not already added
+if (!window.fplResizeListenerAdded) {
+  window.addEventListener("resize", handleResize);
+  window.fplResizeListenerAdded = true;
+}
+
+// Alternative approach: also listen for orientation change and fullscreen changes
+window.addEventListener("orientationchange", handleResize);
+document.addEventListener("fullscreenchange", handleResize);
+document.addEventListener("webkitfullscreenchange", handleResize);
+document.addEventListener("mozfullscreenchange", handleResize);
 
 // --- FIXTURE BOX ---
 
