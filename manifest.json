@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "FPL Fixture Difficulty",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "description": "Show difficulty of next 5 fixtures under each player",
   "permissions": ["https://fantasy.premierleague.com/*"],
   "host_permissions": ["https://fantasy.premierleague.com/*"],
