@@ -1,14 +1,13 @@
 let bootstrapData, fixturesData, teamMapData, teamNameToId;
 let observer;
 let debounceTimer = null;
-const DEBOUNCE_DELAY = 10; // ms
+const DEBOUNCE_DELAY = 10;
 
 if (["/my-team", "/transfers"].includes(location.pathname)) {
   initializeFPLFixtures();
 }
 monitorRouteChange();
 
-// --- FORCE REINJECTION ON FOCUS/VISIBILITY ---
 window.addEventListener("focus", tryForceReinject, true);
 document.addEventListener("visibilitychange", tryForceReinject, true);
 
@@ -90,8 +89,6 @@ function buildTeamNameToIdMap(teamMap) {
   return map;
 }
 
-// --- DRY FIXTURE INJECTION (margin-corrected) ---
-
 function injectFixtureBox(parentElement, teamId, marginTop = "4px") {
   if (!parentElement || !teamId) return;
   parentElement.querySelectorAll(".fixtureBox").forEach((box) => box.remove());
@@ -121,7 +118,6 @@ function waitForElementsAndInject(retries = 10, interval = 1000) {
 }
 
 function injectListAndSideView(retries = 10, interval = 1000) {
-  // Main table view
   const rows = document.querySelectorAll("table tbody tr");
   if (rows.length === 0 && retries > 0) {
     setTimeout(() => injectListAndSideView(retries - 1, interval), interval);
@@ -142,11 +138,9 @@ function injectListAndSideView(retries = 10, interval = 1000) {
     if (!playerData) return;
 
     addOwnershipBadge(row, playerData);
-
     injectFixtureBox(nameSpan.parentElement, teamId, "4px");
   });
 
-  // Side-table (transfers)
   const sideTableRows = document.querySelectorAll(
     ".ElementDialog table tbody tr"
   );
@@ -169,7 +163,6 @@ function injectListAndSideView(retries = 10, interval = 1000) {
     if (!playerData) return;
 
     addOwnershipBadge(row, playerData);
-
     injectFixtureBox(nameSpan.parentElement, teamId, "4px");
   });
 }
@@ -208,7 +201,6 @@ function injectPitchView() {
       badge.style.color = "#333";
       badge.style.fontWeight = "bold";
       badge.style.fontSize = "8px";
-      badge.style.fontWeight = "bold";
       badge.style.padding = "0 3px";
       badge.style.borderRadius = "3px";
       badge.style.zIndex = "5";
@@ -221,7 +213,6 @@ function injectPitchView() {
       badge.style.color = "#333";
       badge.style.fontWeight = "bold";
       badge.style.fontSize = "9px";
-      badge.style.fontWeight = "bold";
       badge.style.padding = "0 3px";
       badge.style.borderRadius = "4px";
       badge.style.zIndex = "5";
@@ -241,49 +232,77 @@ function injectPitchView() {
   });
 }
 
+function findTransfersContainerAndSections() {
+  let container;
+  if (document.querySelector('main section > div[style*="display: flex"]')) {
+    container = document.querySelector(
+      'main section > div[style*="display: flex"]'
+    );
+  } else {
+    const main = document.querySelector("main");
+    if (!main) return {};
+    container = Array.from(main.querySelectorAll("div")).find((div) => {
+      const kids = div.children;
+      return (
+        kids.length === 2 &&
+        kids[0].childElementCount > 1 &&
+        kids[1].childElementCount > 1 &&
+        div.offsetWidth > 600
+      );
+    });
+  }
+  if (!container) return {};
+
+  const children = Array.from(container.children);
+  if (children.length < 2) return {};
+
+  let pitchDiv, tableDiv;
+  if (
+    children[0].innerText.match(/Auto Pick|Make Transfers|Fantasy/i) ||
+    children[0].querySelector('img[alt*="Fantasy"]')
+  ) {
+    pitchDiv = children[0];
+    tableDiv = children[1];
+  } else {
+    pitchDiv = children[1];
+    tableDiv = children[0];
+  }
+
+  return { container, pitchDiv, tableDiv };
+}
+
 function flipTransfersSectionsCSS() {
   if (location.pathname !== "/transfers") return;
-  const container = document.querySelector("div._16mjapo2._16mjapo0");
-  if (!container) return;
+  const { container, pitchDiv, tableDiv } = findTransfersContainerAndSections();
+  if (!container || !pitchDiv || !tableDiv) return;
 
-  // Always recalculate sizes based on current window dimensions
-  const pitchDiv = container.querySelector("div._16mjapo4");
-  const tableDiv = container.querySelector("div._16mjapo5");
-  if (!pitchDiv || !tableDiv) return;
-
-  // Calculate proportional sizes based on current window width
   const containerWidth = container.offsetWidth;
   const windowWidth = window.innerWidth;
   const availableWidth = containerWidth || windowWidth;
 
-  // Calculate proportional sizes (68% pitch, 32% table)
   const pitchWidth = Math.floor(availableWidth * 0.68);
   const tableWidth = Math.floor(availableWidth * 0.32);
 
   const finalPitchSize = `${pitchWidth}px`;
   const finalTableSize = `${tableWidth}px`;
 
-  // Store the new sizes
   container.setAttribute("data-original-pitch-size", finalPitchSize);
   container.setAttribute("data-original-table-size", finalTableSize);
   container.setAttribute("data-original-sizes-stored", "true");
 
-  // Apply the layout swap with stored original sizes
   container.style.display = "flex";
   container.style.flexDirection = "row-reverse";
 
   if (!pitchDiv || !tableDiv) return;
 
-  // Use stored original sizes to maintain proportions
   const originalPitchSize = container.getAttribute("data-original-pitch-size");
   const originalTableSize = container.getAttribute("data-original-table-size");
 
-  // Apply sizes without swapping - each section keeps its original size
   pitchDiv.style.flexBasis = originalPitchSize;
   pitchDiv.style.width = originalPitchSize;
   pitchDiv.style.minWidth = originalPitchSize;
   pitchDiv.style.maxWidth = originalPitchSize;
-  pitchDiv.style.paddingLeft = "50px"; // Add left padding to prevent cutoff
+  pitchDiv.style.paddingLeft = "50px";
 
   tableDiv.style.flexBasis = originalTableSize;
   tableDiv.style.width = originalTableSize;
@@ -291,7 +310,6 @@ function flipTransfersSectionsCSS() {
   tableDiv.style.maxWidth = originalTableSize;
 }
 
-// Add responsive resize handling
 let resizeTimeout;
 let lastWindowWidth = window.innerWidth;
 let lastWindowHeight = window.innerHeight;
@@ -303,7 +321,6 @@ function handleResize() {
     const widthChange = Math.abs(currentWidth - lastWindowWidth);
     const heightChange = Math.abs(currentHeight - lastWindowHeight);
 
-    // Only trigger if there's a significant size change (more than 50px)
     if (widthChange < 50 && heightChange < 50) {
       return;
     }
@@ -311,20 +328,16 @@ function handleResize() {
     lastWindowWidth = currentWidth;
     lastWindowHeight = currentHeight;
 
-    // Clear existing timeout to debounce resize events
     if (resizeTimeout) clearTimeout(resizeTimeout);
 
-    // Debounce resize events to avoid excessive calls
     resizeTimeout = setTimeout(() => {
-      // Force a complete recalculation by clearing all stored data
-      const containers = document.querySelectorAll("div._16mjapo2._16mjapo0");
-      containers.forEach((container) => {
+      const { container } = findTransfersContainerAndSections();
+      if (container) {
         container.removeAttribute("data-original-sizes-stored");
         container.removeAttribute("data-original-pitch-size");
         container.removeAttribute("data-original-table-size");
-      });
+      }
 
-      // Wait for DOM to settle, then recalculate
       setTimeout(() => {
         flipTransfersSectionsCSS();
       }, 100);
@@ -332,19 +345,10 @@ function handleResize() {
   }
 }
 
-// Add resize listener if not already added
 if (!window.fplResizeListenerAdded) {
   window.addEventListener("resize", handleResize);
   window.fplResizeListenerAdded = true;
 }
-
-// Alternative approach: also listen for orientation change and fullscreen changes
-window.addEventListener("orientationchange", handleResize);
-document.addEventListener("fullscreenchange", handleResize);
-document.addEventListener("webkitfullscreenchange", handleResize);
-document.addEventListener("mozfullscreenchange", handleResize);
-
-// --- FIXTURE BOX ---
 
 function createFixtureBox(teamId, fixtures, teamMap) {
   const upcomingFixtures = fixtures
@@ -389,7 +393,6 @@ function createFixtureBox(teamId, fixtures, teamMap) {
       isHome ? "H" : "A"
     }, difficulty ${difficulty})`;
 
-    // Opponent
     const opponentDiv = document.createElement("div");
     opponentDiv.textContent = opponentShort;
     opponentDiv.style.lineHeight = "1";
@@ -398,7 +401,6 @@ function createFixtureBox(teamId, fixtures, teamMap) {
     opponentDiv.style.fontWeight = "bold";
     opponentDiv.style.marginBottom = "1px";
 
-    // Home/Away
     const haDiv = document.createElement("div");
     haDiv.textContent = isHome ? "(H)" : "(A)";
     haDiv.style.fontSize = "7px";
@@ -468,7 +470,6 @@ function addOwnershipBadge(row, playerData) {
   badge.style.verticalAlign = "baseline";
   badge.style.transform = "translateY(-2.6px)";
 
-  // Find the name span and insert the badge after it
   const nameSpan = findPlayerNameSpan(row);
   if (nameSpan) {
     nameSpan.appendChild(badge);
