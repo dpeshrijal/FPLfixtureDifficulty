@@ -474,6 +474,16 @@ function flipSectionsCSS(swapped = true) {
   mainArea.style.minWidth = "0";
   sideBar.style.minWidth = "0";
 
+  const containerWidth = wrapper.offsetWidth;
+  const windowWidth = window.innerWidth;
+  const availableWidth = containerWidth || windowWidth;
+  const tableWidth = Math.floor(availableWidth * 0.25);
+
+  sideBar.style.flexBasis = `${tableWidth}px`;
+  sideBar.style.width = `${tableWidth}px`;
+  sideBar.style.minWidth = `${tableWidth}px`;
+  sideBar.style.maxWidth = `${tableWidth}px`;
+
   console.log("FPL Fixtures: Sections swapped successfully", {
     swapped,
     mainAreaClass: mainArea.className,
