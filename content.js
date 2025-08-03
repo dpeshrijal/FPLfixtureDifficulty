@@ -2,6 +2,7 @@ let bootstrapData, fixturesData, teamMapData, teamNameToId;
 let observer;
 let debounceTimer = null;
 const DEBOUNCE_DELAY = 10;
+let semanticClassesApplied = false;
 
 if (["/my-team", "/transfers"].includes(location.pathname)) {
   initializeFPLFixtures();
@@ -13,6 +14,9 @@ document.addEventListener("visibilitychange", tryForceReinject, true);
 
 function tryForceReinject() {
   if (["/my-team", "/transfers"].includes(location.pathname)) {
+    if (location.pathname === "/my-team") {
+      semanticClassesApplied = false;
+    }
     setTimeout(waitForElementsAndInject, 300);
   }
 }
@@ -24,6 +28,9 @@ function monitorRouteChange() {
     if (currentPath !== lastPath) {
       lastPath = currentPath;
       if (["/my-team", "/transfers"].includes(location.pathname)) {
+        if (location.pathname === "/my-team") {
+          semanticClassesApplied = false;
+        }
         initializeFPLFixtures();
         setTimeout(waitForElementsAndInject, 700);
       }
@@ -112,6 +119,16 @@ function findPlayerData(playerName, teamId, elements) {
 function waitForElementsAndInject(retries = 10, interval = 1000) {
   injectListAndSideView(retries, interval);
   injectPitchView();
+
+  if (location.pathname === "/my-team") {
+    setTimeout(() => {
+      if (!semanticClassesApplied) {
+        applySemanticClasses();
+      }
+      flipSectionsCSS(true);
+    }, 300);
+  }
+
   if (location.pathname === "/transfers") {
     flipTransfersSectionsCSS();
   }
@@ -348,6 +365,120 @@ function handleResize() {
 if (!window.fplResizeListenerAdded) {
   window.addEventListener("resize", handleResize);
   window.fplResizeListenerAdded = true;
+}
+
+function applySemanticClasses(retries = 3) {
+  const main = document.querySelector("main");
+  if (!main) {
+    if (retries > 0) {
+      setTimeout(() => applySemanticClasses(retries - 1), 200);
+    }
+    return;
+  }
+
+  main.querySelectorAll(".fpl-content-wrapper").forEach((wrapper) => {
+    wrapper.classList.remove("fpl-content-wrapper");
+  });
+  main.querySelectorAll(".fpl-main-area, .fpl-side-bar").forEach((el) => {
+    el.classList.remove("fpl-main-area", "fpl-side-bar");
+  });
+
+  semanticClassesApplied = false;
+
+  const wrapper = Array.from(main.querySelectorAll("div")).find((div) => {
+    return (
+      div.children.length === 2 &&
+      div.offsetWidth > 600 &&
+      (div.querySelector('button[data-pitch-element="true"]') !== null ||
+        div.querySelector("table") !== null ||
+        div.querySelector(".ElementDialog") !== null)
+    );
+  });
+  if (!wrapper) {
+    if (retries > 0) {
+      setTimeout(() => applySemanticClasses(retries - 1), 200);
+    }
+    return;
+  }
+
+  wrapper.classList.add("fpl-content-wrapper");
+  const [a, b] = wrapper.children;
+
+  const hasPitchView = (element) => {
+    return (
+      element.querySelector('button[data-pitch-element="true"]') !== null ||
+      element.querySelector('[data-pitch-element="true"]') !== null ||
+      element.querySelector(".pitch") !== null
+    );
+  };
+
+  const hasTable = (element) => {
+    return (
+      element.querySelector("table") !== null ||
+      element.querySelector(".ElementDialog") !== null
+    );
+  };
+
+  if (hasPitchView(a) && hasTable(b)) {
+    a.classList.add("fpl-main-area");
+    b.classList.add("fpl-side-bar");
+    console.log(
+      "FPL Fixtures: Applied classes - A=main (pitch), B=sidebar (table)"
+    );
+  } else if (hasPitchView(b) && hasTable(a)) {
+    b.classList.add("fpl-main-area");
+    a.classList.add("fpl-side-bar");
+    console.log(
+      "FPL Fixtures: Applied classes - B=main (pitch), A=sidebar (table)"
+    );
+  } else {
+    if (a.offsetWidth >= b.offsetWidth) {
+      a.classList.add("fpl-main-area");
+      b.classList.add("fpl-side-bar");
+      console.log("FPL Fixtures: Applied classes - A=main (wider), B=sidebar");
+    } else {
+      b.classList.add("fpl-main-area");
+      a.classList.add("fpl-side-bar");
+      console.log("FPL Fixtures: Applied classes - B=main (wider), A=sidebar");
+    }
+  }
+
+  semanticClassesApplied = true;
+  console.log("FPL Fixtures: Semantic classes applied successfully");
+}
+
+function flipSectionsCSS(swapped = true) {
+  const wrapper = document.querySelector(".fpl-content-wrapper");
+  const mainArea = wrapper?.querySelector(".fpl-main-area");
+  const sideBar = wrapper?.querySelector(".fpl-side-bar");
+
+  if (!wrapper || !mainArea || !sideBar) {
+    console.log("FPL Fixtures: Missing elements for section swap", {
+      wrapper: !!wrapper,
+      mainArea: !!mainArea,
+      sideBar: !!sideBar,
+    });
+    return;
+  }
+
+  wrapper.style.display = "flex";
+  wrapper.style.flexDirection = swapped ? "row-reverse" : "row";
+  wrapper.style.gap = "20px";
+  wrapper.style.alignItems = "flex-start";
+  wrapper.style.width = "100%";
+
+  mainArea.style.order = swapped ? "1" : "0";
+  sideBar.style.order = swapped ? "0" : "1";
+  mainArea.style.flex = "1";
+  sideBar.style.flex = "0 0 auto";
+  mainArea.style.minWidth = "0";
+  sideBar.style.minWidth = "0";
+
+  console.log("FPL Fixtures: Sections swapped successfully", {
+    swapped,
+    mainAreaClass: mainArea.className,
+    sideBarClass: sideBar.className,
+  });
 }
 
 function createFixtureBox(teamId, fixtures, teamMap) {
