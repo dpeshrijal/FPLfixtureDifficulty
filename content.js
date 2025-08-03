@@ -121,12 +121,10 @@ function waitForElementsAndInject(retries = 10, interval = 1000) {
   injectPitchView();
 
   if (location.pathname === "/my-team") {
-    setTimeout(() => {
-      if (!semanticClassesApplied) {
-        applySemanticClasses();
-      }
-      flipSectionsCSS(true);
-    }, 300);
+    if (!semanticClassesApplied) {
+      applySemanticClasses();
+    }
+    flipSectionsCSS(true);
   }
 
   if (location.pathname === "/transfers") {
