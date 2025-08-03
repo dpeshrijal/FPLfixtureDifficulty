@@ -4,10 +4,15 @@ let debounceTimer = null;
 const DEBOUNCE_DELAY = 10;
 let semanticClassesApplied = false;
 
+// Simple loader
+let pageLoader = null;
+
 if (["/my-team", "/transfers"].includes(location.pathname)) {
+  showLoader();
   initializeFPLFixtures();
 }
 monitorRouteChange();
+monitorNavigationClicks();
 
 window.addEventListener("focus", tryForceReinject, true);
 document.addEventListener("visibilitychange", tryForceReinject, true);
@@ -28,14 +33,30 @@ function monitorRouteChange() {
     if (currentPath !== lastPath) {
       lastPath = currentPath;
       if (["/my-team", "/transfers"].includes(location.pathname)) {
-        if (location.pathname === "/my-team") {
-          semanticClassesApplied = false;
-        }
-        initializeFPLFixtures();
-        setTimeout(waitForElementsAndInject, 700);
+        showLoader();
+
+        setTimeout(() => {
+          if (location.pathname === "/my-team") {
+            semanticClassesApplied = false;
+          }
+          initializeFPLFixtures();
+          setTimeout(waitForElementsAndInject, 700);
+        }, 100);
       }
     }
   }, 1000);
+}
+
+function monitorNavigationClicks() {
+  document.addEventListener("click", (e) => {
+    const link = e.target.closest("a");
+    if (
+      link &&
+      (link.href.includes("/my-team") || link.href.includes("/transfers"))
+    ) {
+      showLoader();
+    }
+  });
 }
 
 async function initializeFPLFixtures() {
@@ -94,6 +115,76 @@ function buildTeamNameToIdMap(teamMap) {
     map[team.short_name.toLowerCase()] = id;
   });
   return map;
+}
+
+function showLoader() {
+  if (pageLoader) return;
+
+  pageLoader = document.createElement("div");
+  pageLoader.className = "fpl-loader";
+  pageLoader.innerHTML = `
+    <div class="fpl-spinner"></div>
+    <div class="fpl-message">Optimizing UI...<span class="fpl-dots"></span></div>
+  `;
+
+  if (!document.getElementById("fpl-loader-style")) {
+    const style = document.createElement("style");
+    style.id = "fpl-loader-style";
+    style.textContent = `
+      .fpl-loader {
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        background: rgba(255,255,255,0.9); z-index: 99999;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        transition: opacity 0.3s ease-out;
+      }
+      .fpl-spinner {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #37003c;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: fpl-spin 1s linear infinite;
+        margin-bottom: 15px;
+      }
+      .fpl-message {
+        color: #333;
+        font-family: Arial, sans-serif;
+        font-size: 16px;
+        font-weight: bold;
+        text-align: center;
+      }
+      .fpl-dots {
+        animation: fpl-dots 1.5s infinite;
+      }
+      @keyframes fpl-spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      @keyframes fpl-dots {
+        0%, 20% { opacity: 0; }
+        50% { opacity: 1; }
+        100% { opacity: 0; }
+      }
+      .fpl-loader.fade-out {
+        opacity: 0;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  document.body.appendChild(pageLoader);
+
+  setTimeout(() => {
+    if (pageLoader && pageLoader.parentNode) {
+      pageLoader.classList.add("fade-out");
+      setTimeout(() => {
+        if (pageLoader && pageLoader.parentNode) {
+          pageLoader.parentNode.removeChild(pageLoader);
+          pageLoader = null;
+        }
+      }, 300);
+    }
+  }, 500);
 }
 
 function injectFixtureBox(parentElement, teamId, marginTop = "4px") {
@@ -420,29 +511,20 @@ function applySemanticClasses(retries = 3) {
   if (hasPitchView(a) && hasTable(b)) {
     a.classList.add("fpl-main-area");
     b.classList.add("fpl-side-bar");
-    console.log(
-      "FPL Fixtures: Applied classes - A=main (pitch), B=sidebar (table)"
-    );
   } else if (hasPitchView(b) && hasTable(a)) {
     b.classList.add("fpl-main-area");
     a.classList.add("fpl-side-bar");
-    console.log(
-      "FPL Fixtures: Applied classes - B=main (pitch), A=sidebar (table)"
-    );
   } else {
     if (a.offsetWidth >= b.offsetWidth) {
       a.classList.add("fpl-main-area");
       b.classList.add("fpl-side-bar");
-      console.log("FPL Fixtures: Applied classes - A=main (wider), B=sidebar");
     } else {
       b.classList.add("fpl-main-area");
       a.classList.add("fpl-side-bar");
-      console.log("FPL Fixtures: Applied classes - B=main (wider), A=sidebar");
     }
   }
 
   semanticClassesApplied = true;
-  console.log("FPL Fixtures: Semantic classes applied successfully");
 }
 
 function flipSectionsCSS(swapped = true) {
@@ -451,11 +533,6 @@ function flipSectionsCSS(swapped = true) {
   const sideBar = wrapper?.querySelector(".fpl-side-bar");
 
   if (!wrapper || !mainArea || !sideBar) {
-    console.log("FPL Fixtures: Missing elements for section swap", {
-      wrapper: !!wrapper,
-      mainArea: !!mainArea,
-      sideBar: !!sideBar,
-    });
     return;
   }
 
@@ -481,12 +558,6 @@ function flipSectionsCSS(swapped = true) {
   sideBar.style.width = `${tableWidth}px`;
   sideBar.style.minWidth = `${tableWidth}px`;
   sideBar.style.maxWidth = `${tableWidth}px`;
-
-  console.log("FPL Fixtures: Sections swapped successfully", {
-    swapped,
-    mainAreaClass: mainArea.className,
-    sideBarClass: sideBar.className,
-  });
 }
 
 function createFixtureBox(teamId, fixtures, teamMap) {
