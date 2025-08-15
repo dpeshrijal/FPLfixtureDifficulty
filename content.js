@@ -566,12 +566,48 @@ function flipSectionsCSS(swapped = true) {
   sideBar.style.maxWidth = `${tableWidth}px`;
 }
 
+function getStartingGameweek() {
+  if (!bootstrapData || !bootstrapData.events) {
+    return 1; // Default to gameweek 1 if no data available
+  }
+
+  const currentGameweek = bootstrapData.events.find(
+    (event) => event.is_current
+  );
+
+  if (!currentGameweek) {
+    // If no current gameweek found, find the next gameweek
+    const nextGameweek = bootstrapData.events.find((event) => event.is_next);
+    return nextGameweek ? nextGameweek.id : 1;
+  }
+
+  // Check if the current gameweek has started by looking for any started fixtures
+  const currentGameweekFixtures = fixturesData.filter(
+    (f) => f.event === currentGameweek.id
+  );
+  const hasStartedFixtures = currentGameweekFixtures.some(
+    (f) => f.started || f.finished
+  );
+
+  // If current gameweek has started, show fixtures from next gameweek onwards
+  if (hasStartedFixtures) {
+    return currentGameweek.id + 1;
+  }
+
+  // If current gameweek hasn't started yet, show from current gameweek
+  return currentGameweek.id;
+}
+
 function createFixtureBox(teamId, fixtures, teamMap) {
+  // Determine the starting gameweek for fixture display
+  const startingGameweek = getStartingGameweek();
+
   const upcomingFixtures = fixtures
     .filter(
       (f) =>
         !f.finished &&
-        (f.team_h === Number(teamId) || f.team_a === Number(teamId))
+        (f.team_h === Number(teamId) || f.team_a === Number(teamId)) &&
+        f.event >= startingGameweek
     )
     .sort((a, b) => new Date(a.kickoff_time) - new Date(b.kickoff_time))
     .slice(0, 5);
