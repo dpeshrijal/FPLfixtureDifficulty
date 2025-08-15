@@ -610,22 +610,17 @@ function createFixtureBox(teamId, fixtures, teamMap) {
     }, difficulty ${difficulty})`;
 
     const opponentDiv = document.createElement("div");
-    opponentDiv.textContent = opponentShort;
+    opponentDiv.textContent = isHome
+      ? opponentShort.toUpperCase()
+      : opponentShort.toLowerCase();
     opponentDiv.style.lineHeight = "1";
-    opponentDiv.style.marginTop = "1px";
-    opponentDiv.style.fontSize = "8.5px";
+    opponentDiv.style.marginTop = "2px";
+    opponentDiv.style.fontSize = isHome ? "8.5px" : "10.5px";
     opponentDiv.style.fontWeight = "bold";
-    opponentDiv.style.marginBottom = "1px";
-
-    const haDiv = document.createElement("div");
-    haDiv.textContent = isHome ? "(H)" : "(A)";
-    haDiv.style.fontSize = "7px";
-    haDiv.style.fontWeight = "bold";
-    haDiv.style.lineHeight = "1";
-    haDiv.style.marginBottom = "0";
+    // opponentDiv.style.marginBottom = "2px";
+    opponentDiv.style.paddingBottom = isHome ? "0px" : "1px";
 
     box.appendChild(opponentDiv);
-    box.appendChild(haDiv);
 
     container.appendChild(box);
   });
