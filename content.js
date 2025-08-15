@@ -4,7 +4,6 @@ let debounceTimer = null;
 const DEBOUNCE_DELAY = 10;
 let semanticClassesApplied = false;
 
-// Simple loader
 let pageLoader = null;
 
 if (["/my-team", "/transfers"].includes(location.pathname)) {
@@ -208,8 +207,10 @@ function findPlayerData(playerName, teamId, elements) {
 }
 
 function waitForElementsAndInject(retries = 10, interval = 1000) {
-  injectListAndSideView(retries, interval);
-  injectPitchView();
+  if (bootstrapData && teamMapData && teamNameToId) {
+    injectListAndSideView(retries, interval);
+    injectPitchView();
+  }
 
   if (location.pathname === "/my-team") {
     if (!semanticClassesApplied) {
@@ -225,22 +226,26 @@ function waitForElementsAndInject(retries = 10, interval = 1000) {
 
 function injectListAndSideView(retries = 10, interval = 1000) {
   const rows = document.querySelectorAll("table tbody tr");
+
   if (rows.length === 0 && retries > 0) {
     setTimeout(() => injectListAndSideView(retries - 1, interval), interval);
     return;
   }
+
   rows.forEach((row) => {
     const nameSpan = findPlayerNameSpan(row);
-    const teamImg = row.querySelector("img[alt]");
-    if (!nameSpan || !teamImg) return;
+    const teamName = findTeamNameFromRow(row);
+
+    if (!nameSpan || !teamName) return;
+
     const playerName = nameSpan.textContent.trim();
-    const teamName = teamImg.alt.trim();
     const teamId = teamNameToId?.[teamName?.toLowerCase()];
     const playerData = findPlayerData(
       playerName,
       teamId,
       bootstrapData.elements
     );
+
     if (!playerData) return;
 
     addOwnershipBadge(row, playerData);
@@ -256,10 +261,11 @@ function injectListAndSideView(retries = 10, interval = 1000) {
   }
   sideTableRows.forEach((row) => {
     const nameSpan = findPlayerNameSpan(row);
-    const teamImg = row.querySelector("img[alt]");
-    if (!nameSpan || !teamImg) return;
+    const teamName = findTeamNameFromRow(row);
+
+    if (!nameSpan || !teamName) return;
+
     const playerName = nameSpan.textContent.trim();
-    const teamName = teamImg.alt.trim();
     const teamId = teamNameToId?.[teamName?.toLowerCase()];
     const playerData = findPlayerData(
       playerName,
@@ -644,16 +650,153 @@ function getDifficultyBackground(difficulty) {
   }
 }
 
+function findTeamNameFromRow(row) {
+  const teamImg = row.querySelector("img[alt]");
+  if (teamImg && teamImg.alt) {
+    return teamImg.alt.trim();
+  }
+
+  const buttons = row.querySelectorAll("button[type='button']");
+  let playerButton = null;
+
+  for (const button of buttons) {
+    const hasDiv = button.querySelector("div");
+    const spanCount = button.querySelectorAll("span").length;
+
+    if (hasDiv && spanCount > 1) {
+      playerButton = button;
+      break;
+    }
+  }
+
+  if (playerButton) {
+    const allSpans = playerButton.querySelectorAll("span");
+    const knownTeams = [
+      "Arsenal",
+      "Aston Villa",
+      "Bournemouth",
+      "Brentford",
+      "Brighton",
+      "Burnley",
+      "Chelsea",
+      "Crystal Palace",
+      "Everton",
+      "Fulham",
+      "Leeds",
+      "Liverpool",
+      "Man City",
+      "Man Utd",
+      "Newcastle",
+      "Nott'm Forest",
+      "Spurs",
+      "Sunderland",
+      "West Ham",
+      "Wolves",
+    ];
+
+    for (const span of allSpans) {
+      const childSpans = span.querySelectorAll("span");
+      if (childSpans.length >= 2) {
+        const teamText = childSpans[0]?.textContent?.trim();
+        if (teamText && knownTeams.includes(teamText)) {
+          return teamText;
+        }
+      }
+    }
+
+    for (const span of allSpans) {
+      const text = span.textContent.trim();
+      if (text && knownTeams.includes(text)) {
+        return text;
+      }
+    }
+
+    for (const span of allSpans) {
+      const text = span.textContent.trim();
+      if (
+        text &&
+        text.length > 3 &&
+        text.length < 20 &&
+        !text.match(/^(GKP|DEF|MID|FWD)$/i) &&
+        !text.includes("£") &&
+        !text.match(/^\d+$/) &&
+        knownTeams.some((team) =>
+          team.toLowerCase().includes(text.toLowerCase())
+        )
+      ) {
+        return text;
+      }
+    }
+  }
+
+  return null;
+}
+
+function findPlayerNameFromSpans(spans) {
+  let maxLength = 0;
+  let playerName = "";
+
+  for (const span of spans) {
+    const text = span.textContent.trim();
+    if (
+      text &&
+      text.length > 2 &&
+      text.length > maxLength &&
+      !text.match(/^(GKP|DEF|MID|FWD)$/i) &&
+      !text.includes("£") &&
+      !text.match(/^\d+$/)
+    ) {
+      maxLength = text.length;
+      playerName = text;
+    }
+  }
+
+  return playerName;
+}
+
 function findPlayerNameSpan(row) {
+  const playerButton = row.querySelector("button[type='button']");
+  if (playerButton) {
+    const spans = playerButton.querySelectorAll("span");
+    let playerNameSpan = null;
+    let maxLength = 0;
+
+    for (const span of spans) {
+      const text = span.textContent.trim();
+      if (
+        text &&
+        text.length > 2 &&
+        text.length > maxLength &&
+        !text.match(/^(GKP|DEF|MID|FWD)$/i) &&
+        !text.includes("£") &&
+        !text.match(/^\d+$/) &&
+        !span.querySelector("img") &&
+        !span.className.includes("fpl-ownership-badge")
+      ) {
+        maxLength = text.length;
+        playerNameSpan = span;
+      }
+    }
+
+    if (playerNameSpan) {
+      return playerNameSpan;
+    }
+  }
+
   const spans = row.querySelectorAll("td span");
   return Array.from(spans).find((span) => {
     const text = span.textContent.trim();
     return (
       text &&
       text.length > 2 &&
+      text.length < 50 &&
+      !text.includes("£") &&
+      !text.match(/^\d+$/) &&
+      !text.match(/^(GKP|DEF|MID|FWD)$/i) &&
       !span.querySelector("img") &&
       !span.className.includes("icon") &&
-      !span.className.includes("badge")
+      !span.className.includes("badge") &&
+      !span.className.includes("fpl-ownership-badge")
     );
   });
 }
