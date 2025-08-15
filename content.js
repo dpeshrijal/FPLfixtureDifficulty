@@ -614,11 +614,11 @@ function createFixtureBox(teamId, fixtures, teamMap) {
       ? opponentShort.toUpperCase()
       : opponentShort.toLowerCase();
     opponentDiv.style.lineHeight = "1";
-    opponentDiv.style.marginTop = "2px";
+    opponentDiv.style.marginTop = "4px";
     opponentDiv.style.fontSize = isHome ? "8.5px" : "10.5px";
     opponentDiv.style.fontWeight = "bold";
     // opponentDiv.style.marginBottom = "2px";
-    opponentDiv.style.paddingBottom = isHome ? "0px" : "1px";
+    opponentDiv.style.paddingBottom = isHome ? "0px" : "2px";
 
     box.appendChild(opponentDiv);
 
