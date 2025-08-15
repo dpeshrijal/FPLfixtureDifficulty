@@ -6,7 +6,10 @@ let semanticClassesApplied = false;
 
 let pageLoader = null;
 
-if (["/my-team", "/transfers"].includes(location.pathname)) {
+if (
+  ["/my-team", "/transfers"].includes(location.pathname) ||
+  location.pathname.startsWith("/entry")
+) {
   showLoader();
   initializeFPLFixtures();
 }
@@ -17,7 +20,10 @@ window.addEventListener("focus", tryForceReinject, true);
 document.addEventListener("visibilitychange", tryForceReinject, true);
 
 function tryForceReinject() {
-  if (["/my-team", "/transfers"].includes(location.pathname)) {
+  if (
+    ["/my-team", "/transfers"].includes(location.pathname) ||
+    location.pathname.startsWith("/entry")
+  ) {
     if (location.pathname === "/my-team") {
       semanticClassesApplied = false;
     }
@@ -31,7 +37,10 @@ function monitorRouteChange() {
     const currentPath = location.pathname + location.search;
     if (currentPath !== lastPath) {
       lastPath = currentPath;
-      if (["/my-team", "/transfers"].includes(location.pathname)) {
+      if (
+        ["/my-team", "/transfers"].includes(location.pathname) ||
+        location.pathname.startsWith("/entry")
+      ) {
         showLoader();
 
         setTimeout(() => {
@@ -51,7 +60,9 @@ function monitorNavigationClicks() {
     const link = e.target.closest("a");
     if (
       link &&
-      (link.href.includes("/my-team") || link.href.includes("/transfers"))
+      (link.href.includes("/my-team") ||
+        link.href.includes("/transfers") ||
+        link.href.includes("/entry"))
     ) {
       showLoader();
     }
